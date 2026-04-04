@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const upload = require('../middleware/uploadMiddleware');
-const { protectAdmin } = require('../middleware/authMiddleware');
+const { upload } = require('../middleware/uploadMiddleware');const { protectAdmin } = require('../middleware/authMiddleware');
 const {
   // Basic CRUD
   addCloth,

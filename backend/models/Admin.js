@@ -29,25 +29,12 @@ const adminSchema = new mongoose.Schema(
 );
 
 // 🔐 Hash password before saving (pre-save middleware)
-adminSchema.pre('save', async function(next) {
-  // Only hash the password if it has been modified (or is new)
-  if (!this.isModified('password')) {
-    return next();
-  }
-  
-  try {
-    // Generate salt with 10 rounds
-    const salt = await bcrypt.genSalt(10);
-    
-    // Hash the password
-    this.password = await bcrypt.hash(this.password, salt);
-    
-    next();
-  } catch (error) {
-    next(error);
-  }
-});
+adminSchema.pre('save', async function() {
+  if (!this.isModified('password')) return;
 
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
+});   
 // 🔐 Method to compare entered password with hashed password
 adminSchema.methods.comparePassword = async function(enteredPassword) {
   try {
@@ -55,7 +42,7 @@ adminSchema.methods.comparePassword = async function(enteredPassword) {
   } catch (error) {
     throw new Error('Password comparison failed');
   }
-};
+};  
 
 // 🛠️ Static method to check if any admin exists
 adminSchema.statics.adminExists = async function() {

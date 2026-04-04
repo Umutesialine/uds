@@ -1,11 +1,11 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const dotenv = require("dotenv");
-const bcrypt = require("bcryptjs");
 const Admin = require("./models/Admin");
 
 // Import routes
 const authRoutes = require("./routes/authRoutes");
+const clothesRoutes = require("./routes/clothRoutes");
 
 dotenv.config();
 const app = express();
@@ -13,6 +13,7 @@ app.use(express.json());
 
 // Mount routes
 app.use("/api/auth", authRoutes);
+app.use("/api/clothes", clothesRoutes);
 
 mongoose
   .connect(process.env.MONGO_URI)
@@ -23,8 +24,10 @@ mongoose
     try {
       const existingAdmin = await Admin.findOne({ username: "admin" });
       if (!existingAdmin) {
-        const hashedPassword = await bcrypt.hash("admin123", 10);
-        const defaultAdmin = new Admin({ username: "admin", password: hashedPassword });
+        const defaultAdmin = new Admin({
+  username: "admin",
+  password: "admin123" // plain password
+});               
         await defaultAdmin.save();
         console.log("✅ Default admin created: username=admin, password=admin123");
       }

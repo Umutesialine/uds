@@ -36,15 +36,22 @@ const addCloth = async (req, res) => {
     }
 
     // Check if image was uploaded
-    if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please upload an image'
-      });
+    // if (!req.file) {
+    //   return res.status(400).json({
+    //     success: false,
+    //     message: 'Please upload an image'
+    //   });
+    // }
+
+
+    // Handle image - use default if no image uploaded
+    let imagePath = '/uploads/default-cloth.jpg'; // Default image
+    if (req.file) {
+      imagePath = `/uploads/${req.file.filename}`;
     }
 
     // Create image path (relative path for database)
-    const imagePath = `/uploads/${req.file.filename}`;
+    //const imagePath = `/uploads/${req.file.filename}`;
 
     // Create new cloth
     const cloth = await Cloth.create({

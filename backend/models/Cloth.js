@@ -31,7 +31,7 @@ const clothSchema = new mongoose.Schema(
     },
     image: {
       type: String,
-      required: [true, 'Image is required'],
+      required: [false, 'Image is required'],
       trim: true
     },
     description: {
