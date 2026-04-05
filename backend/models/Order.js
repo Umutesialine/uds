@@ -11,26 +11,34 @@ const orderSchema = new mongoose.Schema(
       ref: 'User',
       required: [true, 'User is required']
     },
-    items: {
-      type: Array,
-      required: [true, 'Items are required'],
-      validate: {
-        validator: function(items) {
-          return items && items.length > 0;
-        },
-        message: 'Order must contain at least one item'
-      }
+    items: [
+  {
+    cloth: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Cloth',
+      required: true
     },
+    name: String,
+    quantity: {
+      type: Number,
+      required: true
+    },
+    price: {
+      type: Number,
+      required: true
+    }
+  }
+],
     totalPrice: {
       type: Number,
       required: [true, 'Total price is required'],
       min: [0, 'Total price cannot be negative']
     },
-    status: {
+    status: {   
       type: String,
       required: [true, 'Status is required'],
-      enum: ['pending', 'completed'],
-      default: 'pending'
+      enum: ['pending', 'delivered', 'cancelled'],
+default: 'pending'
     },
     address: {
       type: String,

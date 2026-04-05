@@ -8,10 +8,9 @@ const Cloth = require('../models/Cloth');
 // @access  Private (User only)
 const createOrder = async (req, res) => {
   try {
-    const { items, totalPrice, address } = req.body;
+    let { items, totalPrice, address } = req.body; // 👈 use let
     const userId = req.user.id;
 
-    // Check if all required fields are provided
     if (!items || !items.length || !totalPrice || !address) {
       return res.status(400).json({
         success: false,
@@ -19,40 +18,54 @@ const createOrder = async (req, res) => {
       });
     }
 
-    // Validate stock for each item
-    for (const item of items) {
-      const cloth = await Cloth.findById(item.clothId);
+    // ✅ STEP 1: FORMAT ITEMS FIRST (VERY IMPORTANT)
+    const formattedItems = items.map(item => {
+      if (!item.cloth && !item.clothId) {
+        throw new Error("Cloth ID is missing in one of the items");
+      }
+
+      return {
+        cloth: item.cloth || item.clothId,
+        name: item.name,
+        quantity: item.quantity,
+        price: item.price
+      };
+    });
+
+    // ✅ STEP 2: VALIDATE STOCK
+    for (const item of formattedItems) {
+      const cloth = await Cloth.findById(item.cloth);
+
       if (!cloth) {
         return res.status(404).json({
           success: false,
-          message: `Cloth with ID ${item.clothId} not found`
+          message: `Cloth with ID ${item.cloth} not found`
         });
       }
-      
+
       if (cloth.stock < item.quantity) {
         return res.status(400).json({
           success: false,
-          message: `Insufficient stock for ${cloth.name}. Only ${cloth.stock} available`
+          message: `Insufficient stock for ${cloth.name}`
         });
       }
     }
 
-    // Reduce stock for each item
-    for (const item of items) {
-      const cloth = await Cloth.findById(item.clothId);
+    // ✅ STEP 3: REDUCE STOCK
+    for (const item of formattedItems) {
+      const cloth = await Cloth.findById(item.cloth);
       await cloth.reduceStock(item.quantity);
     }
 
-    // Create order
+    // ✅ STEP 4: CREATE ORDER
     const order = await Order.create({
       user: userId,
-      items,
+      items: formattedItems, // ✅ use formatted
       totalPrice: parseFloat(totalPrice),
       status: 'pending',
       address
     });
 
-    // Populate user and cloth details
     const populatedOrder = await Order.findById(order._id)
       .populate('user', 'name email phone');
 
@@ -71,7 +84,6 @@ const createOrder = async (req, res) => {
     });
   }
 };
-
 // ==================== READ ORDERS ====================
 
 // @desc    Get logged in user's orders
@@ -184,11 +196,11 @@ const updateOrderStatus = async (req, res) => {
     const { status } = req.body;
 
     // Validate status
-    const validStatuses = ['pending', 'completed'];
+    const validStatuses = ['pending', 'delivered', 'cancelled'];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid status. Allowed: pending, completed'
+        message: 'Invalid status. Allowed: pending, delivered, cancelled'
       });
     }
 
@@ -291,7 +303,7 @@ const cancelOrder = async (req, res) => {
 
     // Restore stock for each item
     for (const item of order.items) {
-      const cloth = await Cloth.findById(item.clothId);
+      const cloth = await Cloth.findById(item.cloth); // ✅ use item.cloth
       if (cloth) {
         await cloth.increaseStock(item.quantity);
       }

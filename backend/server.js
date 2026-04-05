@@ -6,6 +6,9 @@ const Admin = require("./models/Admin");
 // Import routes
 const authRoutes = require("./routes/authRoutes");
 const clothesRoutes = require("./routes/clothRoutes");
+const orderRoutes = require("./routes/orderRoutes");
+const bookingRoutes = require("./routes/bookingRoutes");
+const reviewRoutes = require("./routes/reviewRoutes");
 
 dotenv.config();
 const app = express();
@@ -14,6 +17,11 @@ app.use(express.json());
 // Mount routes
 app.use("/api/auth", authRoutes);
 app.use("/api/clothes", clothesRoutes);
+app.use("/api/orders", orderRoutes);
+app.use("/api/bookings", bookingRoutes);
+app.use("/api/reviews", reviewRoutes);
+
+// Connect to MongoDB and start server
 
 mongoose
   .connect(process.env.MONGO_URI)

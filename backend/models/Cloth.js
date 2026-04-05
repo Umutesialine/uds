@@ -66,6 +66,16 @@ clothSchema.methods.reduceStock = async function(quantity = 1) {
   return this.stock;
 };
 
+clothSchema.methods.increaseStock = async function (qty) {
+  this.stock += qty;
+  return await this.save();
+};
+
+clothSchema.methods.decreaseStock = async function (qty) {
+  this.stock -= qty;
+  return await this.save();
+};  
+
 // Create and export Cloth model
 const Cloth = mongoose.model('Cloth', clothSchema);
 
