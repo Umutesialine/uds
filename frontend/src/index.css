@@ -1,0 +1,124 @@
+/* ================================ */
+/*       IMPORT GOOGLE FONTS        */
+/* ================================ */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@400;600;700&display=swap');
+
+/* ================================ */
+/*       TAILWIND BASE IMPORTS      */
+/* ================================ */
+@import "tailwindcss";
+
+/* ================================ */
+/*       THEME VARIABLES            */
+/* ================================ */
+@theme {
+  /* Colors */
+  --color-primary: #1A1A2E;
+  --color-secondary: #E94560;
+  --color-accent: #FFC107;
+  --color-african: #2E7D32;
+  --color-kitenge: #9C27B0;
+  --color-dark: #1E1E2F;
+  --color-light: #F9F9F9;
+
+  /* Fonts */
+  --font-display: "Poppins", sans-serif;
+  --font-body: "Inter", sans-serif;
+}
+
+/* ================================ */
+/*       CUSTOM KEYFRAMES           */
+/* ================================ */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInLeft {
+  from { opacity: 0; transform: translateX(-30px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes fadeInRight {
+  from { opacity: 0; transform: translateX(30px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slowZoom {
+  from { transform: scale(1); }
+  to { transform: scale(1.05); }
+}
+
+/* ================================ */
+/*       COMPONENTS & CLASSES       */
+/* ================================ */
+@layer components {
+  /* Container */
+  .container-custom {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  /* Buttons */
+  .btn-primary {
+    @apply bg-secondary text-white font-semibold py-3 px-8 rounded-full transition-all duration-300 transform hover:scale-105 hover:shadow-xl hover:bg-secondary/90;
+  }
+
+  .btn-outline {
+    @apply border-2 border-secondary text-secondary font-semibold py-3 px-8 rounded-full transition-all duration-300 transform hover:bg-secondary hover:text-white;
+  }
+
+  .btn-gold {
+    @apply bg-accent text-primary font-semibold py-3 px-8 rounded-full transition-all duration-300 transform hover:scale-105 hover:shadow-xl;
+  }
+
+  /* Section Titles */
+  .section-title {
+    @apply text-4xl md:text-5xl font-bold text-primary mb-4 text-center font-display;
+  }
+
+  .section-subtitle {
+    @apply text-gray-600 text-center max-w-2xl mx-auto mb-12 text-lg;
+  }
+
+  /* Feature Cards */
+  .feature-card {
+    @apply bg-white p-8 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 text-center;
+  }
+}
+
+/* ================================ */
+/*       BASE STYLES                */
+/* ================================ */
+@layer base {
+  body {
+    @apply font-body text-gray-800 bg-light;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display font-bold;
+  }
+}
+
+/* ================================ */
+/*       ANIMATION CLASSES          */
+/* ================================ */
+.animate-fadeInUp {
+  animation: fadeInUp 0.8s ease-out forwards;
+}
+
+.animate-fadeInLeft {
+  animation: fadeInLeft 0.8s ease-out forwards;
+}
+
+.animate-fadeInRight {
+  animation: fadeInRight 0.8s ease-out forwards;
+}
+
+.animate-slowZoom {
+  animation: slowZoom 5s ease-in-out infinite alternate;
+}
+
+/* Animation delays */
+.delay-100 { animation-delay: 0.1s; }
+.delay-200 { animation-delay: 0.2s; }
+.delay-300 { animation-delay: 0.3s; }
