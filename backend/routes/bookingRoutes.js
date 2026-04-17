@@ -11,7 +11,8 @@ const {
   cancelBooking,
   getBookingStats,
   getTodaysBookings,
-  updateMeasurements
+  updateMeasurements,
+  deleteBooking
 } = require('../controllers/bookingController');
 
 // ==================== USER ROUTES ====================
@@ -72,5 +73,8 @@ router.get('/admin/stats', protectAdmin, getBookingStats);
 // @desc    Get today's bookings (admin)
 // @access  Private (Admin only)
 router.get('/admin/today', protectAdmin, getTodaysBookings);
+
+// Add this route
+router.delete('/:id', protectAdmin, deleteBooking);
 
 module.exports = router;

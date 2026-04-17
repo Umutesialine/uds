@@ -8,7 +8,8 @@ const {
   getAllOrders,
   updateOrderStatus,
   getOrderStats,
-  cancelOrder
+  cancelOrder,
+  deleteOrder
 } = require('../controllers/orderController');
 
 // ==================== USER ROUTES ====================
@@ -54,5 +55,8 @@ router.get('/admin/all', protectAdmin, getAllOrders);
 // @desc    Get order statistics (admin dashboard)
 // @access  Private (Admin only)
 router.get('/admin/stats', protectAdmin, getOrderStats);
+
+// Add this route
+router.delete('/:id', protectAdmin, deleteOrder);
 
 module.exports = router;

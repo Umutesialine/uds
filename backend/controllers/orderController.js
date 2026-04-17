@@ -190,17 +190,22 @@ const getAllOrders = async (req, res) => {
 // @desc    Update order status (admin)
 // @route   PUT /api/orders/:id/status
 // @access  Private (Admin only)
+// @desc    Update order status (admin)
+// @route   PUT /api/orders/:id
+// @access  Private (Admin only)
 const updateOrderStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
 
+    console.log('Update order status request:', { id, status });
+
     // Validate status
-    const validStatuses = ['pending', 'delivered', 'cancelled'];
+    const validStatuses = ['pending', 'completed', 'cancelled'];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid status. Allowed: pending, delivered, cancelled'
+        message: `Invalid status. Allowed: ${validStatuses.join(', ')}`
       });
     }
 
@@ -214,7 +219,8 @@ const updateOrderStatus = async (req, res) => {
     }
 
     // Update status
-    await order.updateStatus(status);
+    order.status = status;
+    await order.save();
 
     const updatedOrder = await Order.findById(id)
       .populate('user', 'name email phone');
@@ -235,6 +241,38 @@ const updateOrderStatus = async (req, res) => {
   }
 };
 
+// @desc    Delete order (admin)
+// @route   DELETE /api/orders/:id
+// @access  Private (Admin only)
+const deleteOrder = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const order = await Order.findById(id);
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found'
+      });
+    }
+
+    await Order.findByIdAndDelete(id);
+
+    res.status(200).json({
+      success: true,
+      message: 'Order deleted successfully'
+    });
+
+  } catch (error) {
+    console.error('Delete order error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error deleting order',
+      error: error.message
+    });
+  }
+};
 // ==================== ADVANCED FEATURES ====================
 
 // @desc    Get order statistics (admin dashboard)
@@ -334,5 +372,6 @@ module.exports = {
   getAllOrders,
   updateOrderStatus,
   getOrderStats,
-  cancelOrder
+  cancelOrder,
+  deleteOrder
 };

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { 
   FaShoppingBag, FaBars, FaTimes, FaUser, FaSignOutAlt, 
-  FaSearch, FaHeart, FaCalendarAlt, FaStar, FaChevronDown,
+  FaSearch, FaCalendarAlt, FaStar, FaChevronDown,
   FaUserCircle, FaUserPlus, FaSignInAlt
 } from 'react-icons/fa';
 
@@ -11,19 +11,46 @@ const Navbar = () => {
   const [searchOpen, setSearchOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [cartCount, setCartCount] = useState(0);
   const navigate = useNavigate();
   const location = useLocation();
   
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || '{}');
+  
+  // Check if admin
+  const isAdmin = user?.role === 'admin';
+
+  // Update cart count
+  const updateCartCount = () => {
+    const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+    setCartCount(cart.length);
+  };
 
   useEffect(() => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 50);
     };
     window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    
+    // Initial count load
+    updateCartCount();
+    
+    // Listen for storage changes
+    window.addEventListener('storage', updateCartCount);
+    window.addEventListener('cartUpdated', updateCartCount);
+    
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('storage', updateCartCount);
+      window.removeEventListener('cartUpdated', updateCartCount);
+    };
   }, []);
+
+  // Hide navbar for admin
+  if (isAdmin) {
+    return null;
+  }
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -79,12 +106,16 @@ const Navbar = () => {
                   key={link.name}
                   to={link.path}
                   className={`text-gray-300 hover:text-gold transition font-medium relative group ${
-                    location.pathname === link.path ? 'text-gold' : ''
+                    location.pathname === link.path || location.search.includes(link.path.replace('/', ''))
+                      ? 'text-gold' 
+                      : ''
                   }`}
                 >
                   {link.name}
                   <span className={`absolute -bottom-1 left-0 h-0.5 bg-gold transition-all duration-300 ${
-                    location.pathname === link.path ? 'w-full' : 'w-0 group-hover:w-full'
+                    location.pathname === link.path || location.search.includes(link.path.replace('/', ''))
+                      ? 'w-full' 
+                      : 'w-0 group-hover:w-full'
                   }`}></span>
                 </Link>
               ))}
@@ -109,10 +140,14 @@ const Navbar = () => {
               >
                 <FaSearch size={20} />
               </button>
-              
-              <Link to="/wishlist" className="text-gray-300 hover:text-gold transition relative">
-                <FaHeart size={20} />
-                <span className="absolute -top-2 -right-2 w-4 h-4 bg-secondary rounded-full text-white text-[10px] flex items-center justify-center">0</span>
+
+              <Link to="/cart" className="text-gray-300 hover:text-gold transition relative">
+                <FaShoppingBag size={20} />
+                {cartCount > 0 && (
+                  <span className="absolute -top-2 -right-2 min-w-[18px] h-[18px] bg-gold rounded-full text-primary text-[10px] flex items-center justify-center font-bold px-1">
+                    {cartCount}
+                  </span>
+                )}
               </Link>
 
               {token ? (
@@ -121,10 +156,10 @@ const Navbar = () => {
                     <div className="w-8 h-8 rounded-full bg-gold/20 flex items-center justify-center">
                       <FaUser size={16} className="text-gold" />
                     </div>
-                    <span className="text-sm">{user.name?.split(' ')[0] || 'User'}</span>
-                    <FaChevronDown size={14} />
+                    <span className="text-sm hidden xl:inline">{user.name?.split(' ')[0] || 'User'}</span>
+                    <FaChevronDown size={14} className="hidden xl:block" />
                   </button>
-                  <div className="absolute right-0 mt-3 w-56 bg-white rounded-xl shadow-2xl py-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300">
+                  <div className="absolute right-0 mt-3 w-56 bg-white rounded-xl shadow-2xl py-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50">
                     <Link to="/profile" className="block px-4 py-2 text-gray-700 hover:bg-gray-50 flex items-center gap-2">
                       <FaUserCircle size={16} /> My Profile
                     </Link>
@@ -153,53 +188,63 @@ const Navbar = () => {
             </div>
 
             {/* Mobile Menu Button */}
-            <button className="lg:hidden text-white" onClick={() => setIsOpen(!isOpen)}>
-              {isOpen ? <FaTimes size={24} /> : <FaBars size={24} />}
-            </button>
+            <div className="flex lg:hidden items-center gap-3">
+              <Link to="/cart" className="text-white hover:text-gold transition relative">
+                <FaShoppingBag size={18} />
+                {cartCount > 0 && (
+                  <span className="absolute -top-2 -right-2 min-w-[16px] h-[16px] bg-gold rounded-full text-primary text-[9px] flex items-center justify-center font-bold px-1">
+                    {cartCount}
+                  </span>
+                )}
+              </Link>
+              <button onClick={() => setIsOpen(!isOpen)} className="text-white">
+                {isOpen ? <FaTimes size={22} /> : <FaBars size={22} />}
+              </button>
+            </div>
           </div>
         </div>
 
         {/* Mobile Menu */}
-        <div className={`lg:hidden fixed inset-x-0 top-[73px] bg-primary/95 backdrop-blur-md border-t border-gray-800 transition-all duration-300 ${
+        <div className={`lg:hidden fixed inset-x-0 top-[73px] bg-primary/95 backdrop-blur-md border-t border-gray-800 transition-all duration-300 z-40 ${
           isOpen ? 'opacity-100 visible' : 'opacity-0 invisible'
         }`}>
-          <div className="container-custom py-6">
-            <div className="flex flex-col space-y-4">
+          <div className="container-custom py-4 max-h-[calc(100vh-73px)] overflow-y-auto">
+            <div className="flex flex-col space-y-3">
               {navLinks.map((link) => (
                 <Link
                   key={link.name}
                   to={link.path}
                   onClick={() => setIsOpen(false)}
-                  className="text-white hover:text-gold transition py-2 text-lg"
+                  className="text-white hover:text-gold transition py-2 text-base border-b border-gray-800"
                 >
                   {link.name}
                 </Link>
               ))}
               {token && (
                 <>
-                  <Link to="/bookings" onClick={() => setIsOpen(false)} className="text-white hover:text-gold transition py-2 flex items-center gap-2">
-                    <FaCalendarAlt size={18} /> My Bookings
+                  <Link to="/bookings" onClick={() => setIsOpen(false)} className="text-white hover:text-gold transition py-2 flex items-center gap-2 border-b border-gray-800">
+                    <FaCalendarAlt size={16} /> My Bookings
                   </Link>
-                  <Link to="/profile" onClick={() => setIsOpen(false)} className="text-white hover:text-gold transition py-2 flex items-center gap-2">
-                    <FaUserCircle size={18} /> My Profile
+                  <Link to="/profile" onClick={() => setIsOpen(false)} className="text-white hover:text-gold transition py-2 flex items-center gap-2 border-b border-gray-800">
+                    <FaUserCircle size={16} /> My Profile
                   </Link>
-                  <Link to="/orders" onClick={() => setIsOpen(false)} className="text-white hover:text-gold transition py-2 flex items-center gap-2">
-                    <FaShoppingBag size={18} /> My Orders
+                  <Link to="/orders" onClick={() => setIsOpen(false)} className="text-white hover:text-gold transition py-2 flex items-center gap-2 border-b border-gray-800">
+                    <FaShoppingBag size={16} /> My Orders
                   </Link>
                 </>
               )}
-              <div className="pt-4 border-t border-gray-800">
+              <div className="pt-3">
                 {token ? (
-                  <button onClick={handleLogout} className="btn-outline w-full flex items-center justify-center gap-2">
-                    <FaSignOutAlt size={16} /> Logout
+                  <button onClick={handleLogout} className="btn-outline w-full flex items-center justify-center gap-2 py-2">
+                    <FaSignOutAlt size={14} /> Logout
                   </button>
                 ) : (
                   <div className="flex gap-3">
-                    <Link to="/login" className="btn-outline flex-1 text-center flex items-center justify-center gap-2" onClick={() => setIsOpen(false)}>
-                      <FaSignInAlt size={14} /> Sign In
+                    <Link to="/login" className="btn-outline flex-1 text-center py-2" onClick={() => setIsOpen(false)}>
+                      Sign In
                     </Link>
-                    <Link to="/register" className="btn-gold flex-1 text-center flex items-center justify-center gap-2" onClick={() => setIsOpen(false)}>
-                      <FaUserPlus size={14} /> Sign Up
+                    <Link to="/register" className="btn-gold flex-1 text-center py-2" onClick={() => setIsOpen(false)}>
+                      Sign Up
                     </Link>
                   </div>
                 )}
@@ -211,11 +256,11 @@ const Navbar = () => {
 
       {/* Search Modal */}
       {searchOpen && (
-        <div className="fixed inset-0 bg-black/95 z-[60] flex items-center justify-center animate-fadeInUp">
-          <div className="w-full max-w-2xl mx-4">
+        <div className="fixed inset-0 bg-black/95 z-[60] flex items-center justify-center p-4">
+          <div className="w-full max-w-2xl">
             <div className="flex justify-end mb-4">
               <button onClick={() => setSearchOpen(false)} className="text-white hover:text-gold transition">
-                <FaTimes size={32} />
+                <FaTimes size={28} />
               </button>
             </div>
             <form onSubmit={handleSearch}>
@@ -225,25 +270,25 @@ const Navbar = () => {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search for clothes, styles, fabrics..."
-                  className="w-full px-6 py-4 text-lg rounded-full bg-white text-primary outline-none focus:ring-2 focus:ring-gold"
+                  className="w-full px-5 py-3 text-base rounded-full bg-white text-gray-800 outline-none focus:ring-2 focus:ring-gold"
                   autoFocus
                 />
-                <button type="submit" className="absolute right-3 top-1/2 -translate-y-1/2 bg-gold text-primary p-2 rounded-full hover:bg-gold/90 transition">
-                  <FaSearch size={24} />
+                <button type="submit" className="absolute right-2 top-1/2 -translate-y-1/2 bg-gold text-primary p-2 rounded-full hover:bg-gold/90 transition">
+                  <FaSearch size={20} />
                 </button>
               </div>
             </form>
             <div className="mt-6 text-center">
               <p className="text-gray-400 text-sm">Popular searches:</p>
-              <div className="flex flex-wrap justify-center gap-2 mt-2">
-                {['Kitenge', 'Ankara', 'Modern Dresses', 'African Prints', 'Wedding Gowns'].map((tag) => (
+              <div className="flex flex-wrap justify-center gap-2 mt-3">
+                {['Kitenge', 'Ankara', 'Modern Dresses', 'African Prints'].map((tag) => (
                   <button
                     key={tag}
                     onClick={() => {
                       setSearchQuery(tag);
                       handleSearch(new Event('submit'));
                     }}
-                    className="px-3 py-1 bg-white/10 rounded-full text-sm text-gray-300 hover:bg-gold hover:text-primary transition"
+                    className="px-3 py-1.5 bg-white/10 rounded-full text-sm text-gray-300 hover:bg-gold hover:text-primary transition"
                   >
                     {tag}
                   </button>

@@ -357,6 +357,9 @@ const getBookingStats = async (req, res) => {
 // @desc    Get today's bookings (admin)
 // @route   GET /api/bookings/admin/today
 // @access  Private (Admin only)
+// @desc    Get today's bookings (admin)
+// @route   GET /api/bookings/admin/today
+// @access  Private (Admin only)
 const getTodaysBookings = async (req, res) => {
   try {
     const today = new Date();
@@ -371,13 +374,14 @@ const getTodaysBookings = async (req, res) => {
       .populate('cloth', 'name style')
       .sort({ preferredDate: 1 });
 
+    console.log(`Found ${bookings.length} bookings for today`);
+
     res.status(200).json({
       success: true,
       count: bookings.length,
       date: today.toDateString(),
       bookings
     });
-
   } catch (error) {
     console.error('Get today\'s bookings error:', error);
     res.status(500).json({
@@ -387,7 +391,6 @@ const getTodaysBookings = async (req, res) => {
     });
   }
 };
-
 // @desc    Update measurements (user)
 // @route   PUT /api/bookings/:id/measurements
 // @access  Private (User only)
@@ -439,6 +442,39 @@ const updateMeasurements = async (req, res) => {
   }
 };
 
+// @desc    Delete booking (admin)
+// @route   DELETE /api/bookings/:id
+// @access  Private (Admin only)
+const deleteBooking = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const booking = await Booking.findById(id);
+
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: 'Booking not found'
+      });
+    }
+
+    await Booking.findByIdAndDelete(id);
+
+    res.status(200).json({
+      success: true,
+      message: 'Booking deleted successfully'
+    });
+
+  } catch (error) {
+    console.error('Delete booking error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error deleting booking',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   createBooking,
   getUserBookings,
@@ -449,5 +485,6 @@ module.exports = {
   cancelBooking,
   getBookingStats,
   getTodaysBookings,
-  updateMeasurements
+  updateMeasurements,
+  deleteBooking
 };

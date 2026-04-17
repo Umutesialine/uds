@@ -1,42 +1,80 @@
-import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { FaStar, FaRegStar, FaHeart, FaRegHeart, FaEye, FaShoppingBag, FaCut } from 'react-icons/fa';
-import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import ProductCard from './ProductCard';
+import ProductCardSkeleton from './ProductCardSkeleton';
 
-const ProductGrid = ({ products, loading, onAddToCart, onAddToWishlist, wishlistItems = [] }) => {
-  const [hoveredProduct, setHoveredProduct] = useState(null);
+const ProductGrid = ({ products, loading }) => {
+  const [cartCount, setCartCount] = useState(0);
+  const [wishlistCount, setWishlistCount] = useState(0);
 
-  // Helper function to get average rating (will come from API)
-  const getAverageRating = (product) => {
-    if (product.averageRating) return product.averageRating;
-    return 4.5; // Default fallback
+  useEffect(() => {
+    updateCounts();
+  }, []);
+
+  const updateCounts = () => {
+    const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+    const wishlist = JSON.parse(localStorage.getItem('wishlist') || '[]');
+    setCartCount(cart.length);
+    setWishlistCount(wishlist.length);
   };
 
-  // Helper function to render star ratings
-  const renderStars = (rating) => {
-    const fullStars = Math.floor(rating);
-    const hasHalfStar = rating % 1 >= 0.5;
-    const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
+  // Add to Cart function
+  const handleAddToCart = (product) => {
+    const existingCart = JSON.parse(localStorage.getItem('cart') || '[]');
+    const existingIndex = existingCart.findIndex(item => item._id === product._id);
     
-    return (
-      <div className="flex items-center gap-0.5">
-        {[...Array(fullStars)].map((_, i) => (
-          <FaStar key={`full-${i}`} className="text-gold text-xs" />
-        ))}
-        {hasHalfStar && <FaStar className="text-gold text-xs opacity-50" />}
-        {[...Array(emptyStars)].map((_, i) => (
-          <FaRegStar key={`empty-${i}`} className="text-gray-400 text-xs" />
-        ))}
-      </div>
-    );
+    if (existingIndex !== -1) {
+      existingCart[existingIndex].quantity = (existingCart[existingIndex].quantity || 1) + 1;
+    } else {
+      existingCart.push({
+        _id: product._id,
+        name: product.name,
+        price: product.price,
+        image: product.image,
+        style: product.style,
+        category: product.category,
+        stock: product.stock,
+        quantity: 1
+      });
+    }
+    
+    localStorage.setItem('cart', JSON.stringify(existingCart));
+    updateCounts();
+  };
+
+  // Add to Wishlist function
+  const handleAddToWishlist = (product) => {
+    const existingWishlist = JSON.parse(localStorage.getItem('wishlist') || '[]');
+    const exists = existingWishlist.some(item => item._id === product._id);
+    
+    if (exists) {
+      const newWishlist = existingWishlist.filter(item => item._id !== product._id);
+      localStorage.setItem('wishlist', JSON.stringify(newWishlist));
+    } else {
+      existingWishlist.push({
+        _id: product._id,
+        name: product.name,
+        price: product.price,
+        image: product.image,
+        style: product.style,
+        category: product.category
+      });
+      localStorage.setItem('wishlist', JSON.stringify(existingWishlist));
+    }
+    updateCounts();
+  };
+
+  // Check if product is in wishlist
+  const isProductInWishlist = (productId) => {
+    const wishlist = JSON.parse(localStorage.getItem('wishlist') || '[]');
+    return wishlist.some(item => item._id === productId);
   };
 
   if (loading) {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {[...Array(8)].map((_, i) => (
-          <ProductCard key={i} loading={true} />
+          <ProductCardSkeleton key={i} />
         ))}
       </div>
     );
@@ -44,151 +82,61 @@ const ProductGrid = ({ products, loading, onAddToCart, onAddToWishlist, wishlist
 
   if (!products || products.length === 0) {
     return (
-      <div className="text-center py-12">
-        <div className="text-6xl mb-4">👗</div>
-        <h3 className="text-xl font-semibold text-primary mb-2">No Products Found</h3>
+      <div className="text-center py-16 bg-white rounded-2xl shadow-sm">
+        <div className="text-7xl mb-4">👗</div>
+        <h3 className="text-xl font-semibold text-gray-800 mb-2">No Products Found</h3>
         <p className="text-gray-500">Try adjusting your filters or search criteria.</p>
       </div>
     );
   }
 
+  const validProducts = products.filter(product => product && product._id);
+  
+  if (validProducts.length === 0) {
+    return (
+      <div className="text-center py-16 bg-white rounded-2xl shadow-sm">
+        <div className="text-7xl mb-4">⚠️</div>
+        <h3 className="text-xl font-semibold text-gray-800 mb-2">No Valid Products</h3>
+        <p className="text-gray-500">Unable to load products. Please try again later.</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-      {products.map((product, index) => {
-        const isWishlisted = wishlistItems.includes(product._id);
-        const rating = getAverageRating(product);
-        
-        return (
-          <motion.div
-            key={product._id}
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.05 }}
-            className="group relative"
-            onMouseEnter={() => setHoveredProduct(product._id)}
-            onMouseLeave={() => setHoveredProduct(null)}
-          >
-            <div className="bg-white rounded-2xl shadow-lg overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-1">
-              
-              {/* Image Container */}
-              <Link to={`/product/${product._id}`} className="relative block overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100">
-                <img
-                  src={product.image || 'https://via.placeholder.com/400x500?text=No+Image'}
-                  alt={product.name}
-                  className="w-full h-64 object-cover transition-transform duration-500 group-hover:scale-110"
-                />
-                
-                {/* Stock Badge */}
-                {product.stock === 0 && (
-                  <div className="absolute top-3 left-3 bg-red-500 text-white text-xs font-semibold px-2 py-1 rounded-full">
-                    Out of Stock
-                  </div>
-                )}
-                {product.stock > 0 && product.stock < 10 && (
-                  <div className="absolute top-3 left-3 bg-orange-500 text-white text-xs font-semibold px-2 py-1 rounded-full">
-                    Low Stock: {product.stock}
-                  </div>
-                )}
-                {product.discount && product.discount > 0 && (
-                  <div className="absolute top-3 right-3 bg-gold text-primary text-xs font-bold px-2 py-1 rounded-full">
-                    -{product.discount}% OFF
-                  </div>
-                )}
-
-                {/* Style Badge */}
-                <div className="absolute bottom-3 left-3 bg-primary/80 backdrop-blur-sm text-white text-xs px-2 py-1 rounded-full">
-                  {product.style}
-                </div>
-
-                {/* Quick Actions Overlay */}
-                <div className={`absolute inset-0 bg-black/50 flex items-center justify-center gap-3 transition-all duration-300 ${
-                  hoveredProduct === product._id ? 'opacity-100' : 'opacity-0'
-                }`}>
-                  <Link
-                    to={`/product/${product._id}`}
-                    className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-primary hover:bg-gold hover:text-white transition transform hover:scale-110"
-                  >
-                    <FaEye size={18} />
-                  </Link>
-                  <button
-                    onClick={() => onAddToCart?.(product)}
-                    className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-primary hover:bg-gold hover:text-white transition transform hover:scale-110"
-                    disabled={product.stock === 0}
-                  >
-                    <FaShoppingBag size={16} />
-                  </button>
-                  <button
-                    onClick={() => onAddToWishlist?.(product)}
-                    className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-primary hover:bg-gold hover:text-white transition transform hover:scale-110"
-                  >
-                    {isWishlisted ? <FaHeart className="text-red-500" size={16} /> : <FaRegHeart size={16} />}
-                  </button>
-                </div>
-              </Link>
-
-              {/* Product Info */}
-              <div className="p-4">
-                {/* Category & Rating */}
-                <div className="flex justify-between items-start mb-2">
-                  <span className="text-xs text-gray-500 uppercase tracking-wider">
-                    {product.category}
-                  </span>
-                  <div className="flex items-center gap-1">
-                    {renderStars(rating)}
-                    <span className="text-xs text-gray-500 ml-1">({product.reviewCount || 12})</span>
-                  </div>
-                </div>
-
-                {/* Product Name */}
-                <Link to={`/product/${product._id}`}>
-                  <h3 className="font-semibold text-primary hover:text-gold transition line-clamp-2 mb-2 text-sm">
-                    {product.name}
-                  </h3>
-                </Link>
-
-                {/* Price */}
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="text-lg font-bold text-gold">
-                    TSh {product.price.toLocaleString()}
-                  </span>
-                  {product.oldPrice && (
-                    <span className="text-sm text-gray-400 line-through">
-                      TSh {product.oldPrice.toLocaleString()}
-                    </span>
-                  )}
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex gap-2">
-                  <Link
-                    to={`/product/${product._id}`}
-                    className="flex-1 bg-primary text-white text-center py-2 rounded-lg font-medium hover:bg-primary/90 transition text-sm"
-                  >
-                    View Details
-                  </Link>
-                  {product.isCustomizable !== false ? (
-                    <Link
-                      to={`/book-tailoring?cloth=${product._id}`}
-                      className="px-3 py-2 border border-gold text-gold rounded-lg hover:bg-gold hover:text-primary transition"
-                    >
-                      <FaCut size={16} />
-                    </Link>
-                  ) : null}
-                </div>
-
-                {/* Stock Status */}
-                {product.stock > 0 && (
-                  <p className="text-xs text-green-600 mt-2 flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 bg-green-600 rounded-full"></span>
-                    In Stock
-                  </p>
-                )}
-              </div>
+    <>
+      {/* Cart & Wishlist Counters (Optional) */}
+      {(cartCount > 0 || wishlistCount > 0) && (
+        <div className="fixed bottom-20 right-4 z-40 space-y-2">
+          {cartCount > 0 && (
+            <div className="bg-primary text-white rounded-full px-3 py-1 text-xs shadow-lg">
+              🛒 {cartCount} items in cart
             </div>
-          </motion.div>
-        );
-      })}
-    </div>
+          )}
+        </div>
+      )}
+      
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        {validProducts.map((product, index) => {
+          const isWishlisted = isProductInWishlist(product._id);
+          
+          return (
+            <motion.div
+              key={product._id || index}
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: (index % 8) * 0.05 }}
+            >
+              <ProductCard
+                product={product}
+                onAddToCart={handleAddToCart}
+                onAddToWishlist={handleAddToWishlist}
+                isWishlisted={isWishlisted}
+              />
+            </motion.div>
+          );
+        })}
+      </div>
+    </>
   );
 };
 

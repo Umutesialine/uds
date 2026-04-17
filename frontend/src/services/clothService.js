@@ -1,70 +1,88 @@
 import api from './api';
-import { handleApiError } from '../utils/errorHandler';
 
 // Base URL for cloth endpoints
 const CLOTHES_URL = '/clothes';
 
 /**
+ * Normalize API response to always return array of valid products
+ * @param {Object} response - Axios response object
+ * @returns {Array} Array of valid products
+ */
+const normalizeClothesResponse = (response) => {
+  // Extract clothes array from response
+  const clothes = response?.data?.clothes;
+  
+  // Validate it's an array
+  if (!Array.isArray(clothes)) {
+    console.error('[clothService] Invalid API response format:', response?.data);
+    return [];
+  }
+  
+  // Filter out any invalid items (null, undefined, or missing _id)
+  return clothes.filter(item => item && item._id);
+};
+
+/**
  * Cloth Service - Handles all cloth-related API operations
- * Includes CRUD operations, search, filters, and stock management
+ * ✅ RULE: EVERY function returns Array<Product>
  */
 const clothService = {
   /**
    * Get all clothes with optional filters
    * @param {Object} params - Filter parameters
-   * @param {string} params.category - Filter by category (men/women/kids)
-   * @param {string} params.style - Filter by style (Kitenge/modern)
-   * @param {number} params.minPrice - Minimum price filter
-   * @param {number} params.maxPrice - Maximum price filter
-   * @param {boolean} params.inStock - Show only in-stock items
-   * @param {string} params.search - Search by name or description
-   * @param {string} params.sortBy - Sort by (price_asc, price_desc, newest, oldest)
-   * @param {number} params.page - Page number for pagination
-   * @param {number} params.limit - Items per page
-   * @returns {Promise<Object>} List of clothes with pagination
+   * @returns {Promise<Array>} ALWAYS returns array of products
    */
   getAllClothes: async (params = {}) => {
-  try {
-    const queryParams = new URLSearchParams();
-
-    if (params.category) queryParams.append('category', params.category);
-    if (params.style) queryParams.append('style', params.style);
-    if (params.minPrice) queryParams.append('minPrice', params.minPrice);
-    if (params.maxPrice) queryParams.append('maxPrice', params.maxPrice);
-    if (params.inStock === true) queryParams.append('inStock', 'true');
-    if (params.search) queryParams.append('search', params.search);
-    if (params.sortBy) queryParams.append('sortBy', params.sortBy);
-    if (params.page) queryParams.append('page', params.page);
-    if (params.limit) queryParams.append('limit', params.limit);
-
-    const url = queryParams.toString()
-      ? `${CLOTHES_URL}?${queryParams.toString()}`
-      : CLOTHES_URL;
-
-    const response = await api.get(url);
-
-    // 🔥 NORMALIZE HERE
-    return response.data?.clothes || response.data || [];
-    
-  } catch (error) {
-    console.error(error);
-
-    // 🔥 ALWAYS return safe value
-    return [];
-  }
-},
+    try {
+      // Build query string from params
+      const queryParams = new URLSearchParams();
+      if (params.category) queryParams.append('category', params.category);
+      if (params.style) queryParams.append('style', params.style);
+      if (params.minPrice) queryParams.append('minPrice', params.minPrice);
+      if (params.maxPrice) queryParams.append('maxPrice', params.maxPrice);
+      if (params.inStock === true) queryParams.append('inStock', 'true');
+      if (params.search) queryParams.append('search', params.search);
+      if (params.sortBy) queryParams.append('sortBy', params.sortBy);
+      if (params.page) queryParams.append('page', params.page);
+      if (params.limit) queryParams.append('limit', params.limit);
+      
+      const url = queryParams.toString() 
+        ? `${CLOTHES_URL}?${queryParams.toString()}`
+        : CLOTHES_URL;
+      
+      const response = await api.get(url);
+      
+      // ✅ SIMPLE: Always return array, never undefined/null
+      return normalizeClothesResponse(response);
+      
+    } catch (error) {
+      console.error('[clothService] getAllClothes error:', error);
+      return []; // ✅ ALWAYS return empty array on error
+    }
+  },
 
   /**
    * Get single cloth by ID
    * @param {string} id - Cloth ID
-   * @returns {Promise<Object>} Cloth details
+   * @returns {Promise<Object|null>} Returns product object or null
    */
   getClothById: async (id) => {
     try {
       const response = await api.get(`${CLOTHES_URL}/${id}`);
-      return response.data;
+      
+      // Extract cloth from response
+      const cloth = response?.data?.cloth || response?.data?.data || response?.data;
+      
+      if (cloth && cloth._id) {
+        return cloth;
+      }
+      
+      console.warn(`[clothService] Product ${id} not found`);
+      return null;
+      
     } catch (error) {
-      return handleApiError(error);
+      console.error('[clothService] getClothById error:', error);
+      return null;
     }
   },
 
@@ -72,83 +90,64 @@ const clothService = {
    * Search clothes by keyword
    * @param {string} query - Search keyword
    * @param {Object} filters - Additional filters
-   * @returns {Promise<Object>} Search results
+   * @returns {Promise<Array>} ALWAYS returns array of products
    */
   searchClothes: async (query, filters = {}) => {
     try {
       const queryParams = new URLSearchParams();
       queryParams.append('q', query);
-      
       if (filters.category) queryParams.append('category', filters.category);
       if (filters.style) queryParams.append('style', filters.style);
       if (filters.minPrice) queryParams.append('minPrice', filters.minPrice);
       if (filters.maxPrice) queryParams.append('maxPrice', filters.maxPrice);
       
       const response = await api.get(`${CLOTHES_URL}/search?${queryParams.toString()}`);
-      return response.data;
+      
+      // Extract results array (API might return { results: [...] } or { clothes: [...] })
+      const results = response?.data?.results || response?.data?.clothes;
+      
+      if (!Array.isArray(results)) {
+        return [];
+      }
+      
+      return results.filter(item => item && item._id);
+      
     } catch (error) {
-      return handleApiError(error);
-    }
-  },
-
-  /**
-   * Get clothes by category
-   * @param {string} category - Category (men/women/kids)
-   * @param {boolean} inStock - Filter by stock availability
-   * @returns {Promise<Object>} Filtered clothes
-   */
-  getClothesByCategory: async (category, inStock = false) => {
-    try {
-      const url = inStock 
-        ? `${CLOTHES_URL}/category/${category}?inStock=true`
-        : `${CLOTHES_URL}/category/${category}`;
-      const response = await api.get(url);
-      return response.data;
-    } catch (error) {
-      return handleApiError(error);
-    }
-  },
-
-  /**
-   * Get clothes by style
-   * @param {string} style - Style (Kitenge/modern)
-   * @param {boolean} inStock - Filter by stock availability
-   * @returns {Promise<Object>} Filtered clothes
-   */
-  getClothesByStyle: async (style, inStock = false) => {
-    try {
-      const url = inStock 
-        ? `${CLOTHES_URL}/style/${style}?inStock=true`
-        : `${CLOTHES_URL}/style/${style}`;
-      const response = await api.get(url);
-      return response.data;
-    } catch (error) {
-      return handleApiError(error);
+      console.error('[clothService] searchClothes error:', error);
+      return [];
     }
   },
 
   /**
    * Add new cloth (Admin only)
-   * @param {FormData|Object} clothData - Cloth data (supports form-data for images)
-   * @returns {Promise<Object>} Created cloth
+   * @param {FormData|Object} clothData - Cloth data
+   * @returns {Promise<Object|null>} Returns created product or null
    */
-  addCloth: async (clothData) => {
-    try {
-      const isFormData = clothData instanceof FormData;
-      const response = await api.post(CLOTHES_URL, clothData, {
-        headers: isFormData ? { 'Content-Type': 'multipart/form-data' } : {}
-      });
-      return response.data;
-    } catch (error) {
-      return handleApiError(error);
-    }
-  },
+  // In clothService.js, make sure addCloth method handles FormData
+addCloth: async (clothData) => {
+  try {
+    // Check if data is FormData (for file upload)
+    const isFormData = clothData instanceof FormData;
+    
+    const response = await api.post(CLOTHES_URL, clothData, {
+      headers: isFormData ? { 'Content-Type': 'multipart/form-data' } : {}
+    });
+    
+    return response.data;
+  } catch (error) {
+    console.error('Add cloth error:', error);
+    return {
+      success: false,
+      message: error.response?.data?.message || 'Failed to add cloth'
+    };
+  }
+},
 
   /**
    * Update cloth (Admin only)
    * @param {string} id - Cloth ID
    * @param {FormData|Object} clothData - Updated cloth data
-   * @returns {Promise<Object>} Updated cloth
+   * @returns {Promise<Object|null>} Returns updated product or null
    */
   updateCloth: async (id, clothData) => {
     try {
@@ -156,28 +155,78 @@ const clothService = {
       const response = await api.put(`${CLOTHES_URL}/${id}`, clothData, {
         headers: isFormData ? { 'Content-Type': 'multipart/form-data' } : {}
       });
-      return response.data;
+      
+      const updatedProduct = response?.data?.cloth || response?.data?.data || response?.data;
+      
+      if (updatedProduct && updatedProduct._id) {
+        return updatedProduct;
+      }
+      
+      return null;
+      
     } catch (error) {
-      return handleApiError(error);
+      console.error('[clothService] updateCloth error:', error);
+      return null;
     }
   },
 
   /**
    * Delete cloth (Admin only)
    * @param {string} id - Cloth ID
-   * @returns {Promise<Object>} Deletion confirmation
+   * @returns {Promise<boolean>} Returns true if successful
    */
   deleteCloth: async (id) => {
     try {
-      const response = await api.delete(`${CLOTHES_URL}/${id}`);
-      return response.data;
+      await api.delete(`${CLOTHES_URL}/${id}`);
+      return true;
     } catch (error) {
-      return handleApiError(error);
+      console.error('[clothService] deleteCloth error:', error);
+      return false;
     }
   },
 
   /**
-   * Update cloth stock (Admin only)
+   * Get image URL (converts relative path to full URL)
+   * @param {string} imagePath - Image path from backend
+   * @returns {string} Full image URL
+   */
+  getImageUrl: (imagePath) => {
+    if (!imagePath) return '/placeholder-image.jpg';
+    if (imagePath.startsWith('http')) return imagePath;
+    return `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}${imagePath}`;
+  },
+
+  /**
+   * Get low stock alerts (Admin only)
+   * @param {number} threshold - Stock threshold (default: 10)
+   * @returns {Promise<Array>} Low stock products
+   */
+  getLowStockAlerts: async (threshold = 10) => {
+    try {
+      const response = await api.get(`${CLOTHES_URL}/admin/low-stock?threshold=${threshold}`);
+      return response.data?.clothes || [];
+    } catch (error) {
+      console.error('Get low stock alerts error:', error);
+      return [];
+    }
+  },
+
+  /**
+   * Get out of stock clothes (Admin only)
+   * @returns {Promise<Array>} Out of stock products
+   */
+  getOutOfStockClothes: async () => {
+    try {
+      const response = await api.get(`${CLOTHES_URL}/admin/out-of-stock`);
+      return response.data?.clothes || [];
+    } catch (error) {
+      console.error('Get out of stock error:', error);
+      return [];
+    }
+  },
+
+  /**
+   * Update stock only (Admin only)
    * @param {string} id - Cloth ID
    * @param {number} stock - New stock quantity
    * @returns {Promise<Object>} Updated cloth
@@ -187,48 +236,8 @@ const clothService = {
       const response = await api.patch(`${CLOTHES_URL}/${id}/stock`, { stock });
       return response.data;
     } catch (error) {
-      return handleApiError(error);
-    }
-  },
-
-  /**
-   * Get low stock alerts (Admin only)
-   * @param {number} threshold - Stock threshold (default: 10)
-   * @returns {Promise<Object>} Low stock items
-   */
-  getLowStockAlerts: async (threshold = 10) => {
-    try {
-      const response = await api.get(`${CLOTHES_URL}/admin/low-stock?threshold=${threshold}`);
-      return response.data;
-    } catch (error) {
-      return handleApiError(error);
-    }
-  },
-
-  /**
-   * Get out of stock clothes (Admin only)
-   * @returns {Promise<Object>} Out of stock items
-   */
-  getOutOfStockClothes: async () => {
-    try {
-      const response = await api.get(`${CLOTHES_URL}/admin/out-of-stock`);
-      return response.data;
-    } catch (error) {
-      return handleApiError(error);
-    }
-  },
-
-  /**
-   * Get featured products (with discounts)
-   * @param {number} limit - Number of products to fetch
-   * @returns {Promise<Object>} Featured products
-   */
-  getFeaturedProducts: async (limit = 8) => {
-    try {
-      const response = await api.get(`${CLOTHES_URL}?discount=true&limit=${limit}&inStock=true`);
-      return response.data;
-    } catch (error) {
-      return handleApiError(error);
+      console.error('Update stock error:', error);
+      return { success: false, message: error.response?.data?.message };
     }
   },
 
@@ -239,9 +248,10 @@ const clothService = {
   getProductStats: async () => {
     try {
       const response = await api.get(`${CLOTHES_URL}/admin/stats`);
-      return response.data;
+      return response.data?.stats || {};
     } catch (error) {
-      return handleApiError(error);
+      console.error('Get product stats error:', error);
+      return {};
     }
   },
 
@@ -255,7 +265,8 @@ const clothService = {
       const response = await api.post(`${CLOTHES_URL}/bulk`, { clothes });
       return response.data;
     } catch (error) {
-      return handleApiError(error);
+      console.error('Bulk upload error:', error);
+      return { success: false, message: error.response?.data?.message };
     }
   },
 
@@ -265,59 +276,36 @@ const clothService = {
    * @param {string} category - Category
    * @param {string} style - Style
    * @param {number} limit - Number of related products
-   * @returns {Promise<Object>} Related products
+   * @returns {Promise<Array>} Related products
    */
   getRelatedProducts: async (clothId, category, style, limit = 4) => {
     try {
       const response = await api.get(`${CLOTHES_URL}/related/${clothId}?category=${category}&style=${style}&limit=${limit}`);
-      return response.data;
+      return response.data?.clothes || [];
     } catch (error) {
-      return handleApiError(error);
+      console.error('Get related products error:', error);
+      return [];
     }
   },
 
   /**
-   * Prepare form data for cloth with image
-   * @param {Object} clothData - Cloth data object
-   * @param {File} imageFile - Image file
-   * @returns {FormData} FormData ready for upload
+   * Get image URL (converts relative path to full URL)
+   * @param {string} imagePath - Image path from backend
+   * @returns {string} Full image URL
    */
-  prepareFormData: (clothData, imageFile = null) => {
-    const formData = new FormData();
-    
-    formData.append('name', clothData.name);
-    formData.append('price', clothData.price);
-    formData.append('category', clothData.category);
-    formData.append('style', clothData.style);
-    formData.append('description', clothData.description);
-    formData.append('stock', clothData.stock);
-    
-    if (imageFile) {
-      formData.append('image', imageFile);
-    }
-    
-    if (clothData.discount) {
-      formData.append('discount', clothData.discount);
-    }
-    
-    if (clothData.sizes && clothData.sizes.length) {
-      formData.append('sizes', JSON.stringify(clothData.sizes));
-    }
-    
-    if (clothData.colors && clothData.colors.length) {
-      formData.append('colors', JSON.stringify(clothData.colors));
-    }
-    
-    return formData;
+  getImageUrl: (imagePath) => {
+    if (!imagePath) return '/images/placeholder.jpg';
+    if (imagePath.startsWith('http')) return imagePath;
+    return `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${imagePath}`;
   },
 
   /**
    * Format price for display
-   * @param {number} price - Price in TZS
+   * @param {number} price - Price in RWF
    * @returns {string} Formatted price
    */
   formatPrice: (price) => {
-    return `TSh ${price.toLocaleString()}`;
+    return `${price.toLocaleString()} RWF`;
   },
 
   /**
@@ -327,12 +315,12 @@ const clothService = {
    */
   getStockStatus: (stock) => {
     if (stock <= 0) {
-      return { text: 'Out of Stock', color: 'red', badge: 'sold-out' };
+      return { text: 'Out of Stock', color: 'red', badge: 'out-of-stock' };
     }
     if (stock < 10) {
-      return { text: `Only ${stock} left`, color: 'orange', badge: 'limited' };
+      return { text: `Only ${stock} left`, color: 'orange', badge: 'low-stock' };
     }
-    return { text: 'In Stock', color: 'green', badge: 'available' };
+    return { text: 'In Stock', color: 'green', badge: 'in-stock' };
   }
 };
 

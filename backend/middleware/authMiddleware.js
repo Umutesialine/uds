@@ -11,7 +11,6 @@ const protectUser = async (req, res, next) => {
   try {
     let token;
 
-    // Check if token exists in headers
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
       token = req.headers.authorization.split(' ')[1];
     }
@@ -23,10 +22,8 @@ const protectUser = async (req, res, next) => {
       });
     }
 
-    // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // Check if token is for user (not admin)
     if (decoded.role !== 'user') {
       return res.status(403).json({
         success: false,
@@ -34,7 +31,6 @@ const protectUser = async (req, res, next) => {
       });
     }
 
-    // Find user and attach to request
     const user = await User.findById(decoded.id).select('-password');
 
     if (!user) {
@@ -44,9 +40,9 @@ const protectUser = async (req, res, next) => {
       });
     }
 
-    // Attach user to request object
     req.user = {
       id: user._id,
+      _id: user._id,
       name: user.name,
       email: user.email,
       role: 'user'
@@ -88,7 +84,6 @@ const protectAdmin = async (req, res, next) => {
   try {
     let token;
 
-    // Check if token exists in headers
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
       token = req.headers.authorization.split(' ')[1];
     }
@@ -100,10 +95,8 @@ const protectAdmin = async (req, res, next) => {
       });
     }
 
-    // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // Check if token is for admin (not user)
     if (decoded.role !== 'admin') {
       return res.status(403).json({
         success: false,
@@ -111,7 +104,6 @@ const protectAdmin = async (req, res, next) => {
       });
     }
 
-    // Find admin and attach to request
     const admin = await Admin.findById(decoded.id).select('-password');
 
     if (!admin) {
@@ -121,10 +113,12 @@ const protectAdmin = async (req, res, next) => {
       });
     }
 
-    // Attach admin to request object
+    // ✅ Attach admin with both id and _id for compatibility, plus email
     req.admin = {
       id: admin._id,
+      _id: admin._id,
       username: admin.username,
+      email: admin.email,
       role: 'admin'
     };
 
@@ -157,8 +151,6 @@ const protectAdmin = async (req, res, next) => {
 
 /**
  * Optional auth - Try to verify token but don't block if not present
- * @desc    Middleware that attaches user/admin if token is valid
- * @access  Public (but attaches user data if available)
  */
 const optionalAuth = async (req, res, next) => {
   try {
@@ -179,6 +171,7 @@ const optionalAuth = async (req, res, next) => {
       if (user) {
         req.user = {
           id: user._id,
+          _id: user._id,
           name: user.name,
           email: user.email,
           role: 'user'
@@ -191,7 +184,9 @@ const optionalAuth = async (req, res, next) => {
       if (admin) {
         req.admin = {
           id: admin._id,
+          _id: admin._id,
           username: admin.username,
+          email: admin.email,
           role: 'admin'
         };
       }
@@ -200,14 +195,12 @@ const optionalAuth = async (req, res, next) => {
     next();
 
   } catch (error) {
-    // Token invalid but we still proceed
     next();
   }
 };
 
 /**
- * Check if user is admin (to be used after protectAdmin)
- * @desc    Additional check for admin role
+ * Check if user is admin
  */
 const isAdmin = (req, res, next) => {
   if (req.admin && req.admin.role === 'admin') {
@@ -222,7 +215,6 @@ const isAdmin = (req, res, next) => {
 
 /**
  * Check if user is logged in user or admin
- * @desc    Allows access if user owns the resource or is admin
  */
 const isOwnerOrAdmin = (req, res, next) => {
   const resourceUserId = req.params.userId || req.body.userId;

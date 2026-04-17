@@ -13,8 +13,11 @@ const {
   getUserProfile,
   
   // Common
-  verifyToken
+  verifyToken,
+  getAllUsers,  // Add this
+  deleteUser
 } = require('../controllers/authController');
+
 const { protectUser, protectAdmin } = require('../middleware/authMiddleware');
 
 // ==================== USER AUTH ROUTES ====================
@@ -72,5 +75,11 @@ router.put('/admin/change-password', protectAdmin, changeAdminPassword);
 // @desc    Verify token and get user/admin info
 // @access  Private
 router.get('/verify', verifyToken);
+
+// Add these routes inside authRoutes.js
+
+// Admin user management routes
+router.get('/all', protectAdmin, getAllUsers);
+router.delete('/:id', protectAdmin, deleteUser);
 
 module.exports = router;
